@@ -50,14 +50,25 @@ def run_bot():
     print("Starting LinkedIn bot...")
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
+        browser = p.chromium.launch(headless=False)
+
+        context = browser.new_context(
+            viewport={"width": 1366, "height": 768},
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            locale="en-US",
+            timezone_id="Asia/Kolkata",
+        )
+
         page = context.new_page()
 
         # ================= LOGIN =================
         page.goto(
             "https://www.linkedin.com/login",
-            wait_until="domcontentloaded"
+            wait_until="domcontentloaded",
         )
 
         page.wait_for_selector("#username", timeout=60000)
