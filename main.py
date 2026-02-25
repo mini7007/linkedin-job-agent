@@ -55,11 +55,21 @@ def run_bot():
         page = context.new_page()
 
         # 🔐 Login
-        page.goto("https://www.linkedin.com/login")
-        page.fill("#username", LINKEDIN_EMAIL)
-        page.fill("#password", LINKEDIN_PASSWORD)
-        page.click('button[type="submit"]')
-        page.wait_for_timeout(8000)
+       page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
+
+# wait explicitly for login form
+page.wait_for_selector("#username", timeout=60000)
+
+page.fill("#username", LINKEDIN_EMAIL)
+page.fill("#password", LINKEDIN_PASSWORD)
+
+random_delay(2, 4)
+
+page.click('button[type="submit"]')
+
+# wait for navigation after login
+page.wait_for_load_state("networkidle")
+page.wait_for_timeout(5000)
 
         # 🚨 Checkpoint detection (safety)
         if "checkpoint" in page.url.lower():
