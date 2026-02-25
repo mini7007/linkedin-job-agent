@@ -21,8 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          playwright install --with-deps
-
+          python -m playwright install chromium
       - name: Run bot
         env:
           LINKEDIN_EMAIL: ${{ secrets.LINKEDIN_EMAIL }}
