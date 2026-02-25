@@ -4,6 +4,10 @@ import random
 import requests
 from playwright.sync_api import sync_playwright
 
+# ================= CONFIG =================
+MAX_APPLIES_PER_RUN = 10
+applied_count = 0
+
 LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
 LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -23,7 +27,8 @@ SEARCH_KEYWORDS = [
 ]
 
 
-def random_delay(a=3, b=7):
+# ================= HELPERS =================
+def random_delay(a=8, b=18):
     time.sleep(random.uniform(a, b))
 
 
@@ -38,7 +43,10 @@ def save_job(job):
     requests.post(url, headers=HEADERS, json=job)
 
 
+# ================= MAIN BOT =================
 def run_bot():
+    global applied_count
+
     print("🚀 Starting LinkedIn bot...")
 
     with sync_playwright() as p:
@@ -53,25 +61,48 @@ def run_bot():
         page.click('button[type="submit"]')
         page.wait_for_timeout(8000)
 
+        # 🚨 Checkpoint detection (safety)
+        if "checkpoint" in page.url.lower():
+            print("⚠️ LinkedIn checkpoint detected — stopping run")
+            browser.close()
+            return
+
         print("✅ Logged in")
 
+        # ================= SEARCH LOOP =================
         for keyword in SEARCH_KEYWORDS:
+            if applied_count >= MAX_APPLIES_PER_RUN:
+                print("🛑 Daily apply limit reached")
+                break
+
             print(f"🔍 Searching: {keyword}")
 
+            # ✅ Easy Apply only filter added
             search_url = (
                 "https://www.linkedin.com/jobs/search/"
-                f"?keywords={keyword.replace(' ', '%20')}&f_TPR=r86400&f_E=2"
+                f"?keywords={keyword.replace(' ', '%20')}"
+                "&f_AL=true"
+                "&f_TPR=r86400"
+                "&f_E=2"
             )
 
             page.goto(search_url)
-            random_delay(5, 8)
+            random_delay()
 
             jobs = page.locator(".jobs-search-results__list-item").all()[:10]
 
             for job in jobs:
+                if applied_count >= MAX_APPLIES_PER_RUN:
+                    print("🛑 Daily apply limit reached")
+                    break
+
                 try:
                     job.click()
-                    random_delay(4, 6)
+                    random_delay(6, 12)
+
+                    # safer job id extraction
+                    if "currentJobId=" not in page.url:
+                        continue
 
                     job_id = page.url.split("currentJobId=")[-1].split("&")[0]
 
@@ -79,16 +110,14 @@ def run_bot():
                         print("⏭️ Already applied")
                         continue
 
-                    easy_apply = page.locator(
-                        'button:has-text("Easy Apply")'
-                    )
+                    easy_apply = page.locator('button:has-text("Easy Apply")')
 
                     if easy_apply.count() == 0:
                         print("❌ No Easy Apply")
                         continue
 
                     easy_apply.first.click()
-                    random_delay(3, 5)
+                    random_delay(5, 10)
 
                     submit_btn = page.locator(
                         'button:has-text("Submit application")'
@@ -108,14 +137,18 @@ def run_bot():
                             }
                         )
 
-                    random_delay(10, 20)
+                        applied_count += 1
+
+                    random_delay(12, 25)
 
                 except Exception as e:
                     print("⚠️ Error:", e)
                     continue
 
         browser.close()
+        print(f"🏁 Run finished. Applied: {applied_count}")
 
 
+# ================= ENTRY =================
 if __name__ == "__main__":
     run_bot()
